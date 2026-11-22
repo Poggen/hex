@@ -19,13 +19,37 @@ final class KeyboardParakeet {
     static let shared = KeyboardParakeet()
 
     struct Choice: Equatable {
-        let multilingual: Bool
+        enum Model: Hashable {
+            case v2, ultra, pianissimo
+        }
+
+        let model: Model
         /// BCP 47: the language the text goes through Hex's steps in.
         let language: String
 
-        var directory: URL { multilingual ? SpeechModelStore.parakeetUltra : SpeechModelStore.parakeetV2 }
-        var engineName: String { multilingual ? "Parakeet Ultra (keyboard)" : "Parakeet V2 (keyboard)" }
-        var label: String { multilingual ? "parakeet-ultra" : "parakeet-v2" }
+        var directory: URL {
+            switch model {
+            case .v2: SpeechModelStore.parakeetV2
+            case .ultra: SpeechModelStore.parakeetUltra
+            case .pianissimo: SpeechModelStore.pianissimo
+            }
+        }
+
+        var engineName: String {
+            switch model {
+            case .v2: "Parakeet V2 (keyboard)"
+            case .ultra: "Parakeet Ultra (keyboard)"
+            case .pianissimo: "Pianissimo (keyboard)"
+            }
+        }
+
+        var label: String {
+            switch model {
+            case .v2: "parakeet-v2"
+            case .ultra: "parakeet-ultra"
+            case .pianissimo: "pianissimo"
+            }
+        }
     }
 
     struct Transcript {
@@ -35,7 +59,7 @@ final class KeyboardParakeet {
     }
 
     private struct Loaded {
-        let multilingual: Bool
+        let model: Choice.Model
         let manager: AsrManager
         let seconds: Double
         let cold: Bool
@@ -45,7 +69,7 @@ final class KeyboardParakeet {
     private var loaded: Loaded?
     private var loadTask: Task<Void, Never>?
     /// Models that didn't load or didn't run on the Neural Engine in this process.
-    private var setAside: Set<Bool> = []
+    private var setAside: Set<Choice.Model> = []
     private var memoryWarnedAt: Date?
     private var isTranscribing = false
     private var releasesAfterTranscription = false
@@ -68,22 +92,28 @@ final class KeyboardParakeet {
     nonisolated static func choice() -> Choice? {
         guard KeyboardParakeetSettings().isEnabled, KeyboardParakeetSettings.fits(),
               !TwoLanguageDictationSettings().isEnabled else { return nil }
+        if let language = PianissimoSettings().language(), SpeechModelStore.isComplete(SpeechModelStore.pianissimo) {
+            return Choice(model: .pianissimo, language: language)
+        }
         if let language = MultilingualParakeetSettings().language(),
            SpeechModelStore.isComplete(SpeechModelStore.parakeetUltra) {
-            return Choice(multilingual: true, language: language)
+            return Choice(model: .ultra, language: language)
         }
         let languages = LanguageSettings()
         guard let wanted = languages.dictationLanguage ?? languages.keyboardDictationLanguage() ?? Locale.preferredLanguages.first,
               Locale(identifier: wanted).language.languageCode?.identifier == "en",
               SpeechModelStore.isComplete(SpeechModelStore.parakeetV2) else { return nil }
-        return Choice(multilingual: false, language: wanted)
+        return Choice(model: .v2, language: wanted)
     }
 
     /// Whether the keyboard dictates the multilingual model's language itself now, so the Hex
     /// key needn't open Hex for it.
     var dictatesMultilingualHere: Bool {
-        guard let loaded, loaded.multilingual else { return false }
-        return Self.choice()?.multilingual == true
+        loaded?.model == .ultra && Self.choice()?.model == .ultra
+    }
+
+    var dictatesPianissimoHere: Bool {
+        loaded?.model == .pianissimo && Self.choice()?.model == .pianissimo
     }
 
     /// After the keyboard's first frame and launch work: notes the keyboard's memory limit for
@@ -93,9 +123,13 @@ final class KeyboardParakeet {
         if measured.available > 0 {
             KeyboardParakeetSettings().recordKeyboardLimit(measured.footprint + measured.available)
         }
-        guard let choice = Self.choice() else { return }
-        if loaded?.multilingual == choice.multilingual { return }
-        guard loadTask == nil, !setAside.contains(choice.multilingual) else { return }
+        guard !isTranscribing else { return }
+        guard let choice = Self.choice() else {
+            if loaded?.model == .pianissimo { release(reason: "Pianissimo no longer selected") }
+            return
+        }
+        if loaded?.model == choice.model { return }
+        guard loadTask == nil, !setAside.contains(choice.model) else { return }
         if let warned = memoryWarnedAt, Date().timeIntervalSince(warned) < Self.reloadAfterWarning { return }
         let memory = Self.memory()
         let settings = KeyboardParakeetSettings()
@@ -106,7 +140,7 @@ final class KeyboardParakeet {
         }
         guard Self.hasNeuralEngine else {
             note("parakeet: no Neural Engine here")
-            setAside.insert(choice.multilingual)
+            setAside.insert(choice.model)
             settings.setKeyboardState(.unavailable)
             return
         }
@@ -131,21 +165,26 @@ final class KeyboardParakeet {
                 let seconds = Date().timeIntervalSince(started)
                 guard onEngine else {
                     await manager.cleanup()
-                    self.setAside.insert(choice.multilingual)
+                    self.setAside.insert(choice.model)
                     settings.setKeyboardState(.unavailable)
                     KeyboardProbeLog.shared.write("parakeet: \(choice.label) not on the Neural Engine, Apple's speech recognition \(Self.memory())")
                     return
                 }
+                guard Self.choice()?.model == choice.model else {
+                    await manager.cleanup()
+                    if self.loaded == nil { settings.setKeyboardState(nil) }
+                    return
+                }
                 let cold = seconds >= Self.compilingLoad
-                self.loaded = Loaded(multilingual: choice.multilingual, manager: manager, seconds: seconds, cold: cold, at: Date())
-                settings.setKeyboardState(.ready, multilingual: choice.multilingual)
+                self.loaded = Loaded(model: choice.model, manager: manager, seconds: seconds, cold: cold, at: Date())
+                settings.setKeyboardState(.ready, multilingual: choice.model == .ultra, pianissimo: choice.model == .pianissimo)
                 KeyboardProbeLog.shared.write(
                     "parakeet: \(choice.label) loaded in \(String(format: "%.1f", seconds)) s (\(cold ? "cold" : "warm")) \(after)"
                 )
             } catch {
                 guard let self else { return }
                 self.loadTask = nil
-                self.setAside.insert(choice.multilingual)
+                self.setAside.insert(choice.model)
                 settings.setKeyboardState(.unavailable)
                 KeyboardProbeLog.shared.write("parakeet: \(choice.label) didn't load: \(error) \(Self.memory())")
             }
@@ -169,7 +208,7 @@ final class KeyboardParakeet {
             KeyboardProbeLog.shared.write("parakeet: dictation engine=apple (\(reason)) audio=\(String(format: "%.1f", audioSeconds)) s \(before)")
             return nil
         }
-        guard let loaded, loaded.multilingual == choice.multilingual else {
+        guard let loaded, loaded.model == choice.model else {
             return fallback(loadTask != nil ? "\(choice.label) still loading" : "\(choice.label) not loaded")
         }
         guard !isTranscribing else { return fallback("another transcription running") }
@@ -269,7 +308,7 @@ final class KeyboardParakeet {
         let preprocessor = try model(ModelNames.ASR.preprocessorFile, .cpuOnly)
         let encoder = try model(ModelNames.ASR.encoderFile, .cpuAndNeuralEngine)
         let decoder = try model(ModelNames.ASR.decoderFile, .cpuAndNeuralEngine)
-        let joint = try model(choice.multilingual ? ModelNames.ASR.jointV3File : ModelNames.ASR.jointFile, .cpuAndNeuralEngine)
+        let joint = try model(choice.model == .v2 ? ModelNames.ASR.jointFile : ModelNames.ASR.jointV3File, .cpuAndNeuralEngine)
         let data = try Data(contentsOf: directory.appendingPathComponent(ModelNames.ASR.vocabularyFile))
         var vocabulary: [Int: String] = [:]
         for (key, token) in (try JSONSerialization.jsonObject(with: data) as? [String: String]) ?? [:] {
@@ -283,7 +322,7 @@ final class KeyboardParakeet {
             joint: joint,
             configuration: configuration,
             vocabulary: vocabulary,
-            version: choice.multilingual ? .v3 : .v2
+            version: choice.model == .v2 ? .v2 : .v3
         )
     }
 

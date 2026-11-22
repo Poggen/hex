@@ -85,6 +85,8 @@ final class DictationController {
     /// Experiments › Multilingual model (Parakeet): its download, beside the engine Hex
     /// dictates with until it's ready.
     @ObservationIgnored let multilingualDownload: ParakeetUltraDownload
+    @ObservationIgnored let pianissimoDownload = PianissimoModel.makeDownload()
+    @ObservationIgnored var pianissimoRemoval: Task<Void, Never>?
     private let cleaner: (any TranscriptCleaning)?
     private let cleanupSettings: AppleIntelligenceCleanupSettings
     private let customVocabularySettings: CustomVocabularySettings
@@ -226,8 +228,8 @@ final class DictationController {
     @ObservationIgnored var preparationChangedAt = ContinuousClock.now
     @ObservationIgnored var preparationReported = false
     @ObservationIgnored var preparationLimits = (firstReport: Duration.seconds(30), stall: Duration.seconds(120))
-    /// Whether the preparation now running picked Parakeet Ultra, for its failure path.
-    @ObservationIgnored var preparingMultilingualParakeet = false
+    /// The downloadable v3 model being prepared, for its failure path.
+    @ObservationIgnored var preparingParakeetV3: ParakeetUltraTranscriber.Model?
 
     init(
         audio: (any AudioManaging)? = nil,
@@ -294,6 +296,9 @@ final class DictationController {
         wireAudioCallbacks()
         wireSystemIntentBus()
         self.multilingualDownload.onDownloaded = { [weak self] in
+            self?.syncMultilingualParakeet()
+        }
+        self.pianissimoDownload.onDownloaded = { [weak self] in
             self?.syncMultilingualParakeet()
         }
         if autoPrepareOnInit {
@@ -983,7 +988,12 @@ final class DictationController {
                     self.refreshWarmExpiry()
                     self.phase = .ready
                     self.publishKeyboardSnapshot()
+                    self.prepareDeferredLanguageIfNeeded()
                     return
+                }
+                if (activeTranscriber as? ParakeetUltraTranscriber)?.model == .pianissimo {
+                    self.pianissimoFailedToLoad(error)
+                    self.pendingLanguagePreparation = true
                 }
                 let message = UserFacingError.message(for: error, context: .transcription)
                 self.keyboardMessage = keyboardJobID == nil ? nil : message

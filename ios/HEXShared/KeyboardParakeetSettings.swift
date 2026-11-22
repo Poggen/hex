@@ -14,6 +14,7 @@ nonisolated struct KeyboardParakeetSettings {
     static let keyboardStateAtKey = "experiments.keyboardParakeet.keyboardStateAt"
     /// Whether that state is the multilingual model's (Parakeet Ultra) rather than V2's.
     static let keyboardStateMultilingualKey = "experiments.keyboardParakeet.keyboardStateMultilingual"
+    static let keyboardStatePianissimoKey = "experiments.keyboardParakeet.keyboardStatePianissimo"
     /// The keyboard's memory limit on this iPhone, as the keyboard measured it.
     static let keyboardLimitKey = "experiments.keyboardParakeet.keyboardLimit"
     static let keyboardLimitNotification = "anomaly.hex.keyboardParakeet.keyboardLimit"
@@ -63,9 +64,10 @@ nonisolated struct KeyboardParakeetSettings {
         return (state, Date(timeIntervalSince1970: at))
     }
 
-    func setKeyboardState(_ state: KeyboardState?, multilingual: Bool = false, now: Date = Date()) {
+    func setKeyboardState(_ state: KeyboardState?, multilingual: Bool = false, pianissimo: Bool = false, now: Date = Date()) {
         defaults?.set(state?.rawValue, forKey: Self.keyboardStateKey)
         defaults?.set(multilingual, forKey: Self.keyboardStateMultilingualKey)
+        defaults?.set(pianissimo, forKey: Self.keyboardStatePianissimoKey)
         defaults?.set(now.timeIntervalSince1970, forKey: Self.keyboardStateAtKey)
     }
 
@@ -73,6 +75,10 @@ nonisolated struct KeyboardParakeetSettings {
     /// itself instead of opening Hex (`KeyboardSelfDictation`).
     var keyboardHasMultilingualModel: Bool {
         isEnabled && keyboardState?.state == .ready && defaults?.bool(forKey: Self.keyboardStateMultilingualKey) == true
+    }
+
+    var keyboardHasPianissimoModel: Bool {
+        isEnabled && keyboardState?.state == .ready && defaults?.bool(forKey: Self.keyboardStatePianissimoKey) == true
     }
 
     /// The keyboard's memory limit (bytes), nil until the keyboard first opened on this iPhone.

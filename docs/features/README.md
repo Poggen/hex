@@ -2907,7 +2907,7 @@ iOS prototype (`HEXMobile`) -> Record/transcribe/copy and keyboard handoff
 │   tests only (`DictationControllerTests`, `SpeechModelInstallTests`,
 │   `AppleSpeechAssetReservationsTests`); no physical iPhone run checks either deadline.
 ├── Experiments: Full keyboard, Apple Intelligence cleanup, Custom vocabulary,
-│   Hinglish, Greeklish, Two-language dictation, Adaptive touch, German spatial autocorrect,
+│   Hinglish, Greeklish, Two-language dictation, Swedish dictation (Pianissimo), Adaptive touch, German spatial autocorrect,
 │   Korean keyboard (두벌식), Dvorak punctuation keys, Comma and period keys, Quick accents,
 │   ABC under the emoji key, Keyboard themes (Black, White, Navy, Forest, Ember), Two-thumb
 │   selection, Delete swiped words letter by letter, Hide word suggestions, Join the
@@ -3082,6 +3082,14 @@ iOS prototype (`HEXMobile`) -> Record/transcribe/copy and keyboard handoff
 │   The app, keyboard, widgets, and tests built on a macOS 26 GitHub runner with 33 tests
 │   passing (run 45005571072, the latest observed verification); nothing is measured on an
 │   iPhone.
+├── Swedish dictation (Pianissimo) (off by default, `experiments.pianissimo`):
+│   opt in under Settings › Experiments to download the pinned Core ML model. It
+│   takes the resolved Swedish dictation language once ready. Other languages and
+│   Swedish during the download keep the usual engine. The keyboard can infer
+│   locally with Speech model in keyboard enabled; if it cannot, it hands off
+│   once the app has the model ready. Off cancels and removes the download.
+│   Language selection and handoff have unit coverage. Physical iPhone inference
+│   and memory use are unverified.
 ├── Custom vocabulary (off by default): a local list of up to 100 terms; every
 │   engine spells matched words the listed way before cleanup and again after
 │   formatting

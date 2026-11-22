@@ -852,6 +852,31 @@ final class KeyboardBridgeTests: XCTestCase {
         XCTAssertEqual(bridge.warmDuration, .off, "Off chosen stays Off")
     }
 
+    func testPianissimoHandoffUsesTheModelReadyInThatProcess() throws {
+        try XCTSkipUnless(MultilingualParakeetSettings.fits(), "Pianissimo needs 6 GB of physical memory")
+        let suite = "hex.tests.pianissimoHandoff.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let bridge = KeyboardBridge(defaults: defaults)
+        let languages = LanguageSettings(defaults: defaults)
+        languages.chooseDictationLanguage("sv-SE")
+        let experiment = PianissimoSettings(defaults: defaults)
+        let keyboard = KeyboardParakeetSettings(defaults: defaults)
+        func warmDefault() -> WarmSessionDuration { bridge.defaultWarmDuration(osMajorVersion: 26) }
+
+        experiment.isEnabled = true
+        XCTAssertEqual(warmDefault(), .off, "the keyboard still dictates while the model downloads")
+        experiment.isModelReady = true
+        keyboard.setKeyboardState(.ready, multilingual: true)
+        XCTAssertEqual(warmDefault(), .fifteenMinutes, "another v3 model can't satisfy the handoff")
+        keyboard.setKeyboardState(.ready, pianissimo: true)
+        XCTAssertEqual(warmDefault(), .off, "the keyboard can dictate with Pianissimo itself")
+        keyboard.isEnabled = false
+        XCTAssertEqual(warmDefault(), .fifteenMinutes, "the app dictates when keyboard inference is disabled")
+        languages.chooseDictationLanguage("da-DK")
+        XCTAssertEqual(warmDefault(), .off, "other languages don't use Pianissimo")
+    }
+
     /// An install from before the default followed the keyboard: a stored 15 minutes (tapping
     /// the default to warm the mic stored it) reads as not chosen, once, on iOS 26 where the
     /// keyboard dictates by itself. 5 minutes, 1 hour and Off stay.

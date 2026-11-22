@@ -2,11 +2,21 @@ import FluidAudio
 import Foundation
 import os
 
-/// Experiments › Multilingual model (Parakeet): Parakeet Ultra (`ParakeetUltraModel`) through
-/// FluidAudio's v3 decoder, in Hex's own process. It hears its 25 languages without being told
-/// which, mixed within a sentence, so `languageIdentifier` only names the dictation language
-/// for the steps after it (formatting, lists, cleanup).
+/// Downloadable Parakeet v3 models through FluidAudio's decoder in Hex's process.
 actor ParakeetUltraTranscriber: LocalTranscribing {
+    nonisolated enum Model: Sendable {
+        case ultra, pianissimo
+
+        var name: String { self == .pianissimo ? "Pianissimo" : ParakeetUltraTranscriber.name }
+        var loadGuardKey: String { self == .pianissimo ? "pianissimo" : ParakeetUltraTranscriber.loadGuardModel }
+        var compileKey: String { self == .pianissimo ? "pianissimo.compiledForSystem" : ParakeetUltraTranscriber.compileRecordKey }
+        var directory: URL { self == .pianissimo ? SpeechModelStore.pianissimo : ParakeetUltraModel.directory }
+        var isDownloaded: Bool {
+            if self == .pianissimo { return PianissimoModel.isDownloaded }
+            return ParakeetUltraModel.isDownloaded()
+        }
+    }
+
     enum TranscriberError: HexDescribedError {
         case notPrepared
         case emptyTranscript
@@ -48,11 +58,14 @@ actor ParakeetUltraTranscriber: LocalTranscribing {
         available == 0 || available >= loadMemory
     }
 
-    nonisolated let displayName = ParakeetUltraTranscriber.name
+    nonisolated let model: Model
+    nonisolated let displayName: String
     let languageIdentifier: String
     private var manager: AsrManager?
 
-    init(language: String) {
+    init(language: String, model: Model = .ultra) {
+        self.model = model
+        displayName = model.name
         languageIdentifier = language
     }
 
@@ -91,9 +104,9 @@ actor ParakeetUltraTranscriber: LocalTranscribing {
         progressHandler: @escaping @Sendable (ModelPreparationProgress) -> Void
     ) async throws {
         guard manager == nil else { return }
-        guard ParakeetUltraModel.isDownloaded() else { throw TranscriberError.notDownloaded }
+        guard model.isDownloaded else { throw TranscriberError.notDownloaded }
 
-        let compiled = ParakeetCompileRecord(key: Self.compileRecordKey)
+        let compiled = ParakeetCompileRecord(key: model.compileKey)
         let progress = ParakeetProgressFeed(
             ParakeetPreparationProgress(downloads: false, compiledBefore: compiled.isCurrent),
             emit: progressHandler
@@ -108,7 +121,7 @@ actor ParakeetUltraTranscriber: LocalTranscribing {
 
         // As V2: only the load, where iOS can end Hex short of memory, counts for the guard,
         // and too little left to load it sets it aside for the engine Hex uses without it.
-        let loads = ParakeetLoadGuard(model: Self.loadGuardModel)
+        let loads = ParakeetLoadGuard(model: model.loadGuardKey)
         guard Self.hasRoomToLoad(available: UInt64(max(0, os_proc_available_memory()))) else {
             loads.setAside()
             throw TranscriberError.notEnoughMemory
@@ -117,7 +130,7 @@ actor ParakeetUltraTranscriber: LocalTranscribing {
         var loaded = false
         defer { loads.end(loaded: loaded) }
         progress.update { $0.startLoading(at: Date.now.timeIntervalSinceReferenceDate) }
-        let models = try ParakeetUltraModel.load {
+        let models = try ParakeetUltraModel.load(from: model.directory) {
             let now = Date.now.timeIntervalSinceReferenceDate
             progress.update { $0.finishModel(at: now) }
         }

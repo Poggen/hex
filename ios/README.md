@@ -466,6 +466,15 @@ never at a launch by itself.
     mixed Dutch-English test sentences 7.5% WER against Apple Speech nl-NL's 26.9%,
     pure Dutch 0.9% (0.4%), pure English 0% (0%). Load memory, compile time and speed
     on an iPhone are unmeasured.
+  - **Swedish dictation (Pianissimo) (Settings › Experiments):** Off by default.
+    On iPhones with at least 6 GB of memory, enabling it downloads a pinned
+    631 MB Core ML build into the shared model store. Hex uses Pianissimo for
+    Swedish, including when Automatic follows a Swedish keyboard. The usual
+    engine covers other languages and Swedish while the download finishes.
+    With Speech model in keyboard enabled, iOS 26 and later can run Pianissimo
+    in the keyboard when it fits and loads on the Neural Engine. Otherwise,
+    once the app has Pianissimo ready, the keyboard uses its existing app
+    handoff. Turning the experiment off removes the download.
   - **Speech model in keyboard (Settings › Experiments › Speech model in keyboard, iOS
     26+):** On unless the person turns it off, and disabled (shown off) on iPhones under
     6 GB (`KeyboardParakeetSettings`, in the App Group; a value stored by hand wins, so a
@@ -1913,6 +1922,13 @@ The app shows these under Settings › Acknowledgements (`HEXMobile/Acknowledgem
   as FluidInference's [Core ML conversion](https://huggingface.co/FluidInference/parakeet-ultra-coreml)
   (revision `95eaa59`: 8-bit integer encoder weights, decoder and joint re-exported), used
   unchanged.
+- **Pianissimo:** Experiments › Swedish dictation downloads Klang AI's
+  [Pianissimo](https://huggingface.co/KlangAI/pianissimo-sv), a Swedish fine-tune of
+  [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3),
+  as [Magnus Hjelm's Core ML conversion](https://huggingface.co/magnushjelm/pianissimo-sv-coreml/tree/ff8af835072b77a880991ce2d5402d249f923886).
+  CC BY 4.0 applies to all three. The conversion uses 8-bit k-means palettization
+  for the encoder and retains the v3 preprocessor and vocabulary. Hex uses the converted
+  files unchanged.
 - **RLA-ES:** Spanish words are checked against RLA-ES, the Spanish spelling dictionaries
   for LibreOffice by Santiago Bosio and contributors (Spain and Mexico), used under the
   [Mozilla Public License 1.1](https://www.mozilla.org/en-US/MPL/1.1/)

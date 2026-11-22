@@ -13,6 +13,7 @@ nonisolated struct KeyboardSelfDictation {
         case memory
         case speechModel
         case multilingual
+        case pianissimo
         /// Hex saw the keyboard open it for a dictation, whatever the keyboard's reason.
         case openedHex
     }
@@ -63,6 +64,12 @@ nonisolated struct KeyboardSelfDictation {
         guard osMajorVersion >= Self.firstVersion else { return false }
         if let handed = handedToHex, now.timeIntervalSince(handed.at) < Self.recentWindow { return false }
         let languages = LanguageSettings(defaults: defaults)
+        let keyboard = KeyboardParakeetSettings(defaults: defaults)
+        let pianissimo = PianissimoSettings(defaults: defaults)
+        let swedish = pianissimo.language(set: languages.dictationLanguage, keyboard: languages.keyboardDictationLanguage())
+        if swedish != nil, !TwoLanguageDictationSettings(defaults: defaults).isEnabled,
+           keyboard.keyboardHasPianissimoModel { return true }
+        if pianissimo.keyboardOpensHex(language: swedish) { return false }
         if languages.keyboardNeedsHex(now: now) { return false }
         // Speech model in keyboard (on unless turned off) dictates the multilingual model's
         // language in the keyboard only once the keyboard has that model loaded; until then
@@ -70,6 +77,6 @@ nonisolated struct KeyboardSelfDictation {
         let multilingual = MultilingualParakeetSettings(defaults: defaults)
         let language = multilingual.language(set: languages.dictationLanguage, keyboard: languages.keyboardDictationLanguage())
         return !multilingual.keyboardOpensHex(language: language)
-            || KeyboardParakeetSettings(defaults: defaults).keyboardHasMultilingualModel
+            || keyboard.keyboardHasMultilingualModel
     }
 }

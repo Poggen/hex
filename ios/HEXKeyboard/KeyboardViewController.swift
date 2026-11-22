@@ -1224,21 +1224,36 @@ final class KeyboardViewController: UIInputViewController {
             localDictationAvailable = nil
             return
         }
+        let pianissimo = PianissimoSettings()
+        let pianissimoHere = KeyboardParakeet.shared.dictatesPianissimoHere
+        let pianissimoOpensHex = pianissimo.keyboardOpensHex(language: pianissimo.language()) && !pianissimoHere
         let multilingual = MultilingualParakeetSettings()
         let multilingualOpensHex = multilingual.keyboardOpensHex(language: multilingual.language())
-            && !KeyboardParakeet.shared.dictatesMultilingualHere
-        let needsHex = !localDictation.isActive && (LanguageSettings().keyboardNeedsHex() || multilingualOpensHex)
+            && !KeyboardParakeet.shared.dictatesMultilingualHere && !pianissimoHere
+        let needsAppleModel = !pianissimoHere && LanguageSettings().keyboardNeedsHex()
+        let needsHex = !localDictation.isActive && (needsAppleModel || multilingualOpensHex || pianissimoOpensHex)
         let available = localDictation.isActive || (!needsHex && localDictation.hasMemoryToStart)
-        opensHexFor = available ? nil : multilingualOpensHex ? .multilingual : needsHex ? .speechModel : .memory
+        if available {
+            opensHexFor = nil
+        } else if pianissimoOpensHex {
+            opensHexFor = .pianissimo
+        } else if multilingualOpensHex {
+            opensHexFor = .multilingual
+        } else {
+            opensHexFor = needsHex ? .speechModel : .memory
+        }
         guard available != localDictationAvailable else { return }
         // Noted at most every 5 s, as the footprint can hover at the line.
         let now = Date().timeIntervalSince1970
         if localDictationAvailable != nil || !available, now - lastAvailabilityNote >= 5 {
             lastAvailabilityNote = now
-            let change = available
-                ? "dictating in the keyboard"
-                : multilingualOpensHex ? "multilingual model on, Dictate opens Hex"
-                : needsHex ? "speech model missing here, Dictate opens Hex" : "short of memory, Dictate opens Hex"
+            let change = switch opensHexFor {
+            case nil: "dictating in the keyboard"
+            case .pianissimo: "Pianissimo on, Dictate opens Hex"
+            case .multilingual: "multilingual model on, Dictate opens Hex"
+            case .memory: "short of memory, Dictate opens Hex"
+            default: "speech model missing here, Dictate opens Hex"
+            }
             KeyboardProbeLog.shared.write("\(change) \(KeyboardProbeLog.memory())")
         }
         localDictationAvailable = available

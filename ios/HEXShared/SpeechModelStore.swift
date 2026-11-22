@@ -10,6 +10,7 @@ nonisolated enum SpeechModelStore {
     static let parakeetV2Folder = "parakeet-tdt-0.6b-v2"
     /// `ParakeetUltraModel`'s folder, named for its pinned revision.
     static let parakeetUltraFolder = "parakeet-ultra-coreml-95eaa59"
+    static let pianissimoRevision = "ff8af835072b77a880991ce2d5402d249f923886"
     static let completeMarker = ".hex-complete"
 
     /// `Library/Application Support/SpeechModels` in the App Group (where devicectl can list it
@@ -24,6 +25,9 @@ nonisolated enum SpeechModelStore {
 
     static var parakeetV2: URL { root.appendingPathComponent(parakeetV2Folder, isDirectory: true) }
     static var parakeetUltra: URL { root.appendingPathComponent(parakeetUltraFolder, isDirectory: true) }
+    static var pianissimo: URL {
+        root.appendingPathComponent("pianissimo-sv-coreml-\(pianissimoRevision.prefix(7))", isDirectory: true)
+    }
 
     /// Every file of the model in `directory` is on disk.
     static func isComplete(_ directory: URL) -> Bool {

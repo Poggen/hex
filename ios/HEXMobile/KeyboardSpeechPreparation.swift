@@ -105,7 +105,9 @@ final class KeyboardSpeechPreparation {
         // Apple Speech in Hex is the keyboard's model too, unless the keyboard is handing its
         // dictations to Hex: then it checks, so a model in place ends that.
         let needsHex = LanguageSettings().keyboardNeedsHex()
-        if appEngine() == ParakeetUltraTranscriber.name || (appEngine() == "Apple Speech" && !needsHex) {
+        let engine = appEngine()
+        if engine == ParakeetUltraTranscriber.name || engine == ParakeetUltraTranscriber.Model.pianissimo.name
+            || (engine == "Apple Speech" && !needsHex) {
             publish(.followsApp, generation: generation)
             return
         }

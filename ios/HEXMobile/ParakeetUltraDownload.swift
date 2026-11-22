@@ -45,6 +45,7 @@ final class ParakeetUltraDownload {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let stallLimit: Duration
     @ObservationIgnored private let backoff: (Int) -> Int
+    let isPianissimo: Bool
     /// Now, so a background trip's length is testable.
     @ObservationIgnored private let now: () -> Date
 
@@ -55,7 +56,8 @@ final class ParakeetUltraDownload {
         session: URLSession = ParakeetUltraDownload.makeSession(),
         stallLimit: Duration = ParakeetUltraDownload.stallLimit,
         backoff: @escaping (Int) -> Int = ParakeetUltraDownload.backoff,
-        now: @escaping () -> Date = { Date() }
+        now: @escaping () -> Date = { Date() },
+        isPianissimo: Bool = false
     ) {
         self.directory = directory
         self.files = files
@@ -64,6 +66,7 @@ final class ParakeetUltraDownload {
         self.stallLimit = stallLimit
         self.backoff = backoff
         self.now = now
+        self.isPianissimo = isPianissimo
     }
 
     /// A connection that sends nothing for 30 s ends, rather than after the default minute.
@@ -146,7 +149,7 @@ final class ParakeetUltraDownload {
         backgroundedAt = now()
         // A few more seconds from iOS, so a quick look at another app doesn't stop it.
         if task != nil, backgroundTime == nil {
-            backgroundTime = BackgroundTime("Download the multilingual model")
+            backgroundTime = BackgroundTime(isPianissimo ? "Download Pianissimo" : "Download the multilingual model")
         }
     }
 
@@ -216,7 +219,7 @@ final class ParakeetUltraDownload {
                     task = nil
                     endBackgroundTime()
                     failedForConnection = Self.triesAgain(after: error)
-                    state = .failed(Self.message(for: error))
+                    state = .failed(Self.message(for: error, isPianissimo: isPianissimo))
                     return
                 }
                 if backgroundedAt != nil {
@@ -301,7 +304,21 @@ final class ParakeetUltraDownload {
             || (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOSPC))
     }
 
-    nonisolated static func message(for error: Error) -> String {
+    nonisolated static func message(for error: Error, isPianissimo: Bool = false) -> String {
+        if isPianissimo {
+            if isOutOfSpace(error) {
+                return String(localized: "Pianissimo needs \(size(PianissimoModel.totalBytes)) of free space. Free some up, then try again.")
+            }
+            if error is StallWatch.Stalled || error is URLError {
+                return String(localized: "The Pianissimo download stopped. Check your connection and try again.")
+            }
+            if case .corrupt = error as? ParakeetUltraModel.DownloadError {
+                return String(localized: "Part of Pianissimo arrived damaged. Try again.")
+            }
+            if (error as? ParakeetUltraModel.DownloadError) != .badStatus(429) {
+                return String(localized: "Pianissimo didn't download. Try again.")
+            }
+        }
         if isOutOfSpace(error) {
             return String(localized: "The multilingual model needs \(ParakeetUltraTranscriber.downloadSize) of free space. Free some up, then try again.")
         }
@@ -326,13 +343,21 @@ final class ParakeetUltraDownload {
         case .idle:
             nil
         case .downloading(let bytes):
-            String(localized: "Downloading the multilingual model: \(Self.size(bytes)) of \(Self.size(total))")
+            isPianissimo
+                ? String(localized: "Downloading Pianissimo: \(Self.size(bytes)) of \(Self.size(total))")
+                : String(localized: "Downloading the multilingual model: \(Self.size(bytes)) of \(Self.size(total))")
         case .waiting(_, let seconds?):
-            String(localized: "The multilingual model's download stopped. Trying again in \(seconds) s.")
+            isPianissimo
+                ? String(localized: "The Pianissimo download stopped. Trying again in \(seconds) s.")
+                : String(localized: "The multilingual model's download stopped. Trying again in \(seconds) s.")
         case .waiting(_, nil):
-            String(localized: "The multilingual model's download resumes when you open Hex.")
+            isPianissimo
+                ? String(localized: "The Pianissimo download resumes when you open Hex.")
+                : String(localized: "The multilingual model's download resumes when you open Hex.")
         case .loading:
-            String(localized: "Getting the multilingual model ready")
+            isPianissimo
+                ? String(localized: "Getting Pianissimo ready")
+                : String(localized: "Getting the multilingual model ready")
         case .failed(let message):
             message
         }
@@ -382,6 +407,8 @@ struct MultilingualModelStatus: View {
     let retry: () -> Void
     let turnOff: () -> Void
 
+    private var accessibilityPrefix: String { download.isPianissimo ? "pianissimo" : "multilingual-model" }
+
     var body: some View {
         if let status = download.status {
             VStack(alignment: .leading, spacing: 10) {
@@ -395,7 +422,7 @@ struct MultilingualModelStatus: View {
                             .foregroundStyle(HexTheme.textBase)
                             .monospacedDigit()
                             .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityIdentifier("multilingual-model-status")
+                            .accessibilityIdentifier("\(accessibilityPrefix)-status")
                         Text("Until then, Hex uses its usual model.")
                             .font(.system(size: 12))
                             .foregroundStyle(HexTheme.textMuted)
@@ -410,9 +437,9 @@ struct MultilingualModelStatus: View {
                 if download.isFailed {
                     HStack(spacing: 8) {
                         Button("Try again", action: retry)
-                            .accessibilityIdentifier("multilingual-model-try-again")
+                            .accessibilityIdentifier("\(accessibilityPrefix)-try-again")
                         Button("Turn off", action: turnOff)
-                            .accessibilityIdentifier("multilingual-model-turn-off")
+                            .accessibilityIdentifier("\(accessibilityPrefix)-turn-off")
                     }
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(HexTheme.textBase)

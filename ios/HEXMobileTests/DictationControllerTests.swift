@@ -1691,6 +1691,24 @@ final class DictationControllerTests: XCTestCase {
     private static let sixGB: UInt64 = 5_900_000_000
     private static let fourGB: UInt64 = 3_700_000_000
 
+    func testPianissimoOnlyTakesTheResolvedSwedishLanguageAfterOptIn() {
+        let settings = PianissimoSettings(defaults: defaults)
+        func language(set: String? = nil, keyboard: String? = nil, preferred: [String] = ["en-US"], memory: UInt64 = Self.sixGB) -> String? {
+            settings.language(set: set, keyboard: keyboard, preferred: preferred, physicalMemory: memory)
+        }
+
+        XCTAssertNil(language(set: "sv-SE"))
+        settings.isEnabled = true
+        XCTAssertEqual(language(set: "sv-FI", keyboard: "en-US"), "sv-FI")
+        XCTAssertEqual(language(keyboard: "sv-SE"), "sv-SE")
+        XCTAssertEqual(language(preferred: ["sv-SE"]), "sv-SE")
+        XCTAssertNil(language(set: "en-GB", keyboard: "sv-SE", preferred: ["sv-SE"]))
+        XCTAssertNil(language(keyboard: "da-DK", preferred: ["sv-SE"]))
+        XCTAssertNil(language(set: "sv-SE", memory: Self.fourGB))
+        settings.isEnabled = false
+        XCTAssertNil(language(keyboard: "sv-SE"))
+    }
+
     func testMultilingualParakeetIsOffByDefaultAndPicksNothing() {
         let settings = MultilingualParakeetSettings(defaults: defaults)
         XCTAssertFalse(settings.isEnabled)

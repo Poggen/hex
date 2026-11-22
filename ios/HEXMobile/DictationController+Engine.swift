@@ -11,6 +11,7 @@ extension DictationController {
         let parakeetLoads = ParakeetLoadGuard()
         parakeetLoads.noteLaunch()
         let parakeetInterrupted = parakeetLoads.lastLoadWasInterrupted
+        if preparePianissimoAtLaunch() { return }
         if prepareMultilingualParakeetAtLaunch() { return }
         guard #available(iOS 26.0, *) else {
             prepareBeforeAppleSpeechAtLaunch(hasCachedModel: hasCachedModel)
@@ -102,6 +103,7 @@ extension DictationController {
     /// loads it beside the engine that dictates, when the experiment wants it and it isn't the
     /// one dictating already.
     func syncMultilingualParakeet() {
+        if syncPianissimo() { return }
         guard MultilingualParakeetSettings().isEnabled else {
             multilingualDownload.settle()
             return
@@ -213,6 +215,7 @@ extension DictationController {
     }
 
     static func defaultTranscriber() async -> any LocalTranscribing {
+        if let pianissimo = PianissimoModel.candidate() { return pianissimo }
         // Experiments › Multilingual model (Parakeet), for its languages once it's downloaded and
         // compiled; until then (and off) the engine Hex uses without it.
         if let language = ParakeetUltraTranscriber.chosenLanguage(),

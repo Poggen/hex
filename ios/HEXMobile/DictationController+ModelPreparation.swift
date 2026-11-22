@@ -53,9 +53,10 @@ extension DictationController {
         // A load beside the engine this replaces is dropped; the end of this one decides again.
         multilingualDownload.dropLoad()
         startMultilingualDownloadIfWanted()
+        startPianissimoDownloadIfWanted()
         phase = .preparingModel
         copied = false
-        preparingMultilingualParakeet = false
+        preparingParakeetV3 = nil
         modelPreparation = ModelPreparationProgress(
             fractionCompleted: 0,
             detail: String(localized: "Checking the speech model")
@@ -80,8 +81,11 @@ extension DictationController {
                 self.keyboardBridge.setModelInstalled(true)
                 self.isModelReady = true
                 self.phase = .ready
-                if self.preparingMultilingualParakeet {
+                if self.preparingParakeetV3 == .ultra {
                     self.multilingualParakeetLoaded()
+                } else if self.preparingParakeetV3 == .pianissimo {
+                    PianissimoSettings().isModelReady = true
+                    self.pianissimoDownload.settle()
                 }
                 self.publishKeyboardSnapshot()
                 if self.pendingHandoff != nil {
@@ -90,10 +94,11 @@ extension DictationController {
                 self.syncMultilingualParakeet()
             } catch {
                 guard self.modelPrepGeneration == prepGen else { return }
-                if self.preparingMultilingualParakeet, fallbacksLeft > 0, !(error is CancellationError) {
-                    // Parakeet Ultra didn't load: the engine Hex uses without it dictates, and
-                    // Hex says why, with Try again.
-                    self.multilingualParakeetFailedToLoad(error)
+                if let model = self.preparingParakeetV3, fallbacksLeft > 0, !(error is CancellationError) {
+                    switch model {
+                    case .ultra: self.multilingualParakeetFailedToLoad(error)
+                    case .pianissimo: self.pianissimoFailedToLoad(error)
+                    }
                     self.prepareModel(fallbacksLeft: fallbacksLeft - 1)
                     return
                 }
@@ -144,6 +149,11 @@ extension DictationController {
                 let limit = self.preparationReported ? self.preparationLimits.stall : self.preparationLimits.firstReport
                 guard now - self.preparationChangedAt >= limit else { continue }
                 print("speech model preparation said nothing new for \(limit): ended")
+                if self.preparingParakeetV3 == .pianissimo {
+                    self.pianissimoFailedToLoad(SpeechModelUnresponsive())
+                    self.prepareModel()
+                    return
+                }
                 self.modelPrepGeneration &+= 1
                 self.preparationTask?.cancel()
                 self.preparationTask = nil
@@ -173,7 +183,8 @@ extension DictationController {
         guard modelPrepGeneration == generation else { throw CancellationError() }
         try Task.checkCancellation()
         engineName = candidate.displayName
-        preparingMultilingualParakeet = candidate is ParakeetUltraTranscriber
+        preparingParakeetV3 = (candidate as? ParakeetUltraTranscriber)?.model
+        if preparingParakeetV3 == .pianissimo { pianissimoDownload.loading() }
         try await candidate.prepare { [weak self] progress in
             Task { @MainActor [weak self] in
                 guard let self, self.modelPrepGeneration == generation else { return }
@@ -239,6 +250,7 @@ extension DictationController {
     func appMovedToBackground() {
         isInBackground = true
         multilingualDownload.appMovedToBackground()
+        pianissimoDownload.appMovedToBackground()
     }
 
     /// Picks up a download that iOS cut off while Hex was in the background; FluidAudio
@@ -247,6 +259,7 @@ extension DictationController {
         isInBackground = false
         refreshWarmDuration()
         multilingualDownload.appBecameActive()
+        pianissimoDownload.appBecameActive()
         guard preparationFailedInBackground else { return }
         preparationFailedInBackground = false
         if case .failed = phase, !isModelReady {

@@ -120,6 +120,18 @@ struct AcknowledgementsView: View {
             """
         ),
         Entry(
+            title: "Klang Pianissimo",
+            body: """
+            Swedish dictation downloads Pianissimo by Klang AI AB (huggingface.co/KlangAI/\
+            pianissimo-sv), fine-tuned from NVIDIA Parakeet TDT 0.6B v3 \
+            (huggingface.co/nvidia/parakeet-tdt-0.6b-v3). Core ML conversion by Magnus Hjelm \
+            (huggingface.co/magnushjelm/pianissimo-sv-coreml, revision ff8af83); the encoder \
+            weights were compressed with 8-bit k-means palettization. The preprocessor and \
+            vocabulary are from Parakeet v3. Hex uses the converted files unchanged. \
+            Creative Commons Attribution 4.0 International (creativecommons.org/licenses/by/4.0).
+            """
+        ),
+        Entry(
             title: "RLA-ES",
             body: """
             Spanish words are checked against RLA-ES, the Spanish spelling dictionaries for \

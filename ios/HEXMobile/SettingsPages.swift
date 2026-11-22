@@ -678,6 +678,7 @@ struct ExperimentsSettingsPage: View {
     @State private var learnPerLanguage = TypingJournalSettings().learnsPerLanguage
     @State private var multilingualParakeet = MultilingualParakeetSettings().isEnabled
     private let multilingualParakeetFits = MultilingualParakeetSettings.fits()
+    @State private var pianissimo = PianissimoSettings().isEnabled
     @State private var keyboardParakeet = KeyboardParakeetSettings().isOn
     private let keyboardParakeetFits = KeyboardParakeetSettings.fits()
 
@@ -708,6 +709,9 @@ struct ExperimentsSettingsPage: View {
                 guard enabled != KeyboardParakeetSettings().isEnabled else { return }
                 KeyboardParakeetSettings().isEnabled = enabled
                 DictationController.shared.keyboardParakeetChanged()
+            }
+            .onChange(of: pianissimo) { _, enabled in
+                DictationController.shared.setPianissimoEnabled(enabled)
             }
             .onAppear { loadSettings() }
     }
@@ -982,6 +986,10 @@ struct ExperimentsSettingsPage: View {
 
         SettingsDivider()
 
+        pianissimoExperiment
+
+        SettingsDivider()
+
         // On unless turned off: the keyboard's own English dictation transcribes with Parakeet in
         // the keyboard once downloaded (by itself on Wi-Fi) and compiled there; off, it keeps
         // Apple's speech recognition.
@@ -998,6 +1006,28 @@ struct ExperimentsSettingsPage: View {
             KeyboardParakeetStatus(download: KeyboardParakeetDownload.shared)
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
+        }
+    }
+
+    @ViewBuilder private var pianissimoExperiment: some View {
+        let size = ParakeetUltraDownload.size(PianissimoModel.totalBytes)
+        SettingsToggleRow(
+            title: String(localized: "Swedish dictation (Pianissimo)"),
+            detail: multilingualParakeetFits
+                ? String(localized: "Uses Klang Pianissimo when your dictation language is Swedish. \(size) download, then works offline.")
+                : String(localized: "Needs an iPhone with 6 GB of memory or more"),
+            isOn: $pianissimo
+        )
+        .disabled(!multilingualParakeetFits)
+
+        if pianissimo {
+            MultilingualModelStatus(
+                download: DictationController.shared.pianissimoDownload,
+                retry: { DictationController.shared.retryPianissimo() },
+                turnOff: { pianissimo = false }
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
         }
     }
 
@@ -1024,6 +1054,7 @@ struct ExperimentsSettingsPage: View {
         joinsKeyboardWhenUnfolded = FullKeyboardSettings().joinsKeyboardWhenUnfolded
         learnPerLanguage = TypingJournalSettings().learnsPerLanguage
         multilingualParakeet = MultilingualParakeetSettings().isEnabled
+        pianissimo = PianissimoSettings().isEnabled
         keyboardParakeet = KeyboardParakeetSettings().isOn
     }
 
