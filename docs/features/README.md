@@ -2917,7 +2917,9 @@ iOS prototype (`HEXMobile`) -> Record/transcribe/copy and keyboard handoff
 │   and autocorrect, and the input mode reports the language typing
 │   (`UIInputViewController.primaryLanguage`, which Apple documents as superseding the
 │   Info.plist's en-US; unit-tested, whether the host's spelling follows it is unverified on
-│   a device); Italian restores unambiguous unaccented spellings on space ("perche" →
+│   a device). Svenska has dedicated å, ö and ä keys and uses the iPhone's Swedish
+│   dictionary for autocorrect and suggestions when available. With Switch dictation
+│   too, Svenska selects Swedish dictation. Italian restores unambiguous unaccented spellings on space ("perche" →
 │   "perché", "citta" → "città", `KeyboardLanguage.accentRestorations`) and offers "è" and
 │   "c'è" in the strip for "e" and "ce", which are words of their own and are never changed
 │   by space. Hungarian is a normal language (no experiment): its own QWERTZ rows and QWERTY,

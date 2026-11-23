@@ -1298,7 +1298,7 @@ never at a launch by itself.
   "QWERTZ – Magyar" and "QWERTY – Magyar", the standard Hungarian QWERTZ with every accented
   vowel on a held key, Z and Y swapped on the second (Apple's own Hungarian layout list wasn't
   read on a simulator for this change); Srpski
-  QWERTZ (Hex's, though Apple now adds it as QWERTY), QWERTY, AZERTY. Norsk, Русский, Українська and Ελληνικά keep their
+  QWERTZ (Hex's, though Apple now adds it as QWERTY), QWERTY, AZERTY. Norsk, Svenska, Русский, Українська and Ελληνικά keep their
   one layout (Apple also offers a phonetic "Russian – QWERTY", not built). The plain
   layouts are the same 26 letters in every language, with the language's bottom row and
   123 pages; only the letters move (`KeyboardLetterLayout`, `KeyboardLanguage.letterRows(_:)`).
@@ -1326,7 +1326,8 @@ never at a launch by itself.
   Adaptive touch learns each arrangement as its own key plane; typing logs' `layout` lines
   name it (`letters`).
 - **Keyboard layouts (each language's letters):** English,
-  Norsk (`å` ending row 1, `ø æ` row 2), Español (`ñ` ending row 2; beside English, the
+  Norsk (`å` ending row 1, `ø æ` row 2), Svenska (`å` ending row 1, `ö ä` row 2,
+  Swedish autocorrect where the iPhone has a Swedish dictionary), Español (`ñ` ending row 2; beside English, the
   first of the two's keys, above),
   Deutsch (QWERTZ with `ü`, `ö ä`), Italiano and Português on the English letters
   (Apple's keyboards for them are QWERTY), Français (France) on Apple's "AZERTY – French" (rows of

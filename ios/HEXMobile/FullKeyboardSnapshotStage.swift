@@ -74,6 +74,15 @@ struct FullKeyboardSnapshotStage: View {
             case "accents": Self.accentKey == "e" ? "Kaf" : "Bl"
             default: "Kommer ti min for sent, "
             }
+        case .swedish:
+            return switch state {
+            case "inserted": "Jag är på väg hem. Vi hörs!"
+            case "numbers": "Jag är hemma 19.3"
+            case "shift": "Jag är på väg hem. "
+            case "typing": "Jag är på väg he"
+            case "accents": "Caf"
+            default: "Jag är på väg hem, "
+            }
         case .spanish:
             return switch state {
             case "inserted": "Llego diez minutos tarde, estaré en casa a las 7:30."

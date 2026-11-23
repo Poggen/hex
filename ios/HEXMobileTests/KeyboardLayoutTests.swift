@@ -688,6 +688,7 @@ final class KeyboardLayoutTests: XCTestCase {
         let rows: [KeyboardLanguage: [String]] = [
             .english: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
             .norwegian: ["qwertyuiopå", "asdfghjkløæ", "zxcvbnm"],
+            .swedish: ["qwertyuiopå", "asdfghjklöä", "zxcvbnm"],
             .spanish: ["qwertyuiop", "asdfghjklñ", "zxcvbnm"],
             .german: ["qwertzuiopü", "asdfghjklöä", "yxcvbnm"],
             .italian: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
@@ -731,6 +732,7 @@ final class KeyboardLayoutTests: XCTestCase {
             .romanian: [.qwerty, .qwertz, .azerty],
             .serbianLatin: [.qwertz, .qwerty, .azerty],
             .norwegian: [.own],
+            .swedish: [.own],
             .russian: [.own],
             .ukrainian: [.own],
             .greek: [.own],
@@ -2099,6 +2101,8 @@ final class KeyboardLayoutTests: XCTestCase {
             KeyboardLanguage.automatic(dictationLanguage: dictation, inputModes: modes, preferredLanguages: preferred)
         }
         XCTAssertEqual(automatic("nb-NO"), .norwegian)
+        XCTAssertEqual(automatic("sv-SE"), .swedish)
+        XCTAssertEqual(automatic(nil, modes: ["sv-FI", "en-US"]), .swedish)
         XCTAssertEqual(automatic("es-MX"), .spanish)
         XCTAssertEqual(automatic("de-AT"), .german)
         XCTAssertEqual(automatic("en-GB", modes: ["nb-NO"]), .english, "the dictation language wins")
@@ -2415,6 +2419,9 @@ final class KeyboardLayoutTests: XCTestCase {
     func testSpellCheckUsesTheLayoutsLanguageOrNone() {
         XCTAssertEqual(KeyboardLanguage.norwegian.spellCheckLanguage(available: ["en_US", "nb"]), "nb")
         XCTAssertNil(KeyboardLanguage.norwegian.spellCheckLanguage(available: ["en_US", "da"]))
+        XCTAssertEqual(KeyboardLanguage.swedish.spellCheckLanguage(available: ["en_US", "sv", "nb"]), "sv")
+        XCTAssertEqual(KeyboardLanguage.swedish.spellCheckLanguage(available: ["sv_SE"]), "sv_SE")
+        XCTAssertNil(KeyboardLanguage.swedish.spellCheckLanguage(available: ["en_US", "nb"]))
         XCTAssertEqual(KeyboardLanguage.german.spellCheckLanguage(available: ["de"]), "de")
         XCTAssertEqual(KeyboardLanguage.italian.spellCheckLanguage(available: ["en_US", "it_IT"]), "it_IT")
         XCTAssertEqual(KeyboardLanguage.french.spellCheckLanguage(available: ["en_US", "fr_FR"]), "fr_FR")
